@@ -1,13 +1,13 @@
 from typing import Optional
 from pydantic import BaseModel
 
-class CommandeCreer(BaseModel):
+class CommandeCreate(BaseModel):
     numero: int
     statut: str
     total: float
-    utilisateur_id: Optional[int] = None
+    user_id: Optional[int] = None
 
-class CommandeSupprimer(CommandeCreer):
+class CommandeOut(CommandeCreate):
     id: int
 
     class Config:

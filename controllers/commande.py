@@ -4,15 +4,15 @@ from fastapi import HTTPException
 
 from models.commande import Commande
 from models.produit import Produit
-from schemas.commande import CommandeCreer
+from schemas.commande import CommandeCreate
 
 
-def create_commande(db: Session, commande: CommandeCreer):
+def create_commande(db: Session, commande: CommandeCreate):
     commande_to_create = Commande(
         numero=commande.numero,
         statut=commande.statut,
         total=commande.total,
-        utilisateur_id=commande.utilisateur_id
+        user_id=commande.user_id
     )
 
     db.add(commande_to_create)
@@ -40,7 +40,7 @@ def get_commande(db: Session, commande_id: int):
     return commande
 
 
-def update_commande(db: Session, commande_id: int, data: CommandeCreer):
+def update_commande(db: Session, commande_id: int, data: CommandeCreate):
     commande = get_commande(db, commande_id)
 
     for key, value in data.model_dump().items():
