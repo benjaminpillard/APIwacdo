@@ -3,15 +3,15 @@ from typing import Optional
 from datetime import datetime
 
 class ProduitCreate(BaseModel):
-    produit: str
+    title: str
     price: float
-    user_id: Optional[int] = None
+    currency: str = "EUR"
 
 class ProduitOut(BaseModel):
     id: int
-    produit: str
+    title: str
     price: float
-    user_id: Optional[int] = None
+    currency: str
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
 
