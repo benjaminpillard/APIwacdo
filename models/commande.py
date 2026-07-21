@@ -1,6 +1,7 @@
-from sqlalchemy import Column, DateTime, Integer, String, Float, func
+from sqlalchemy import Column, DateTime, Integer, String, Float, ForeignKey, func
 from sqlalchemy.orm import relationship
 from models.commande_produit import association_table
+
 from models.database import Base
 
 class Commande(Base):
@@ -10,7 +11,7 @@ class Commande(Base):
     number = Column(String, unique=True)
     status = Column(String)
     total = Column(Float)
-    user_id = Column(Integer)
+    user_id = Column(Integer, ForeignKey("utilisateurs.id"))
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
