@@ -6,6 +6,7 @@ from utils.setting import settings
 
 
 def create_access_token(data: dict, expires_delta: timedelta | None = None):
+    # Creer un token avec une date d'expiration
     to_encode = data.copy()
     if expires_delta:
         expire = datetime.now(timezone.utc) + expires_delta
@@ -16,6 +17,7 @@ def create_access_token(data: dict, expires_delta: timedelta | None = None):
     return encoded_jwt
 
 def decode_access_token(token: str):
+    # Decoder et valider le token signe
     try:
         payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
         return payload
