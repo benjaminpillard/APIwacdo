@@ -12,6 +12,7 @@ from controllers.user import read_user
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/users/login")
 
 def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)) -> Utilisateur:
+    # Decoder le JWT puis retrouver l'utilisateur courant
     try:
         payload = decode_access_token(token)
         username = payload.get("username")
@@ -35,6 +36,7 @@ def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(
         )
 
 def require_role(*roles):
+    # Verifier que le role de l'utilisateur est autorise
     def role_checker(current_user: Utilisateur = Depends(get_current_user)):
         if current_user.role not in roles:
             raise HTTPException(

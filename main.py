@@ -13,14 +13,19 @@ from utils.setting import settings
 
 
 app = FastAPI()
+# Creer les tables au demarrage
+
 Base.metadata.create_all(bind=engine)
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/users/login")
+
+# Brancher les routes de l'API
 
 app.include_router(produit_router)
 app.include_router(menu_router)
 app.include_router(utilisateur_route)
 app.include_router(commande_router)
 
+# Autoriser les origines front configurees
 app.add_middleware(
     CORSMiddleware,
     allow_origins= settings.cors_origins_list,
