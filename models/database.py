@@ -6,6 +6,7 @@ from utils.setting import settings
 
 
 database_url = settings.DATABASE_URL
+# Adapter les vieux formats Postgres vers psycopg
 if database_url.startswith("postgresql://"):
     database_url = database_url.replace("postgresql://", "postgresql+psycopg://", 1)
 elif database_url.startswith("postgres://"):
@@ -21,6 +22,7 @@ Base = declarative_base()
 
 
 def get_db():
+    # Ouvrir puis fermer proprement la session SQLAlchemy
     db = SessionLocal()
     try:
         yield db

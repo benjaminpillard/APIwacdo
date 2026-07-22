@@ -9,6 +9,7 @@ from models.commande import Commande
 
 
 def create_produit(db: Session, produit: ProduitCreate):
+    # Construire puis enregistrer un produit
     produit_to_create = Produit(
         title=produit.title,
         price=produit.price,
@@ -23,6 +24,7 @@ def create_produit(db: Session, produit: ProduitCreate):
 
 
 def list_produits(skip: int, limit: int, db: Session):
+    # Pagination simple (offset/limit)
     stmt = select(Produit).offset(skip).limit(limit)
     return db.execute(stmt).scalars().all()
 
@@ -60,6 +62,7 @@ def update_produit(
     produit_id: int,
     data: ProduitCreate
 ):
+    # Mettre a jour les champs recus
     produit = get_produit_by_id(produit_id, db)
 
     for key, value in data.model_dump(exclude_unset=True).items():
@@ -72,6 +75,7 @@ def update_produit(
 
 
 def delete_produit(db: Session, produit_id: int):
+    # Supprimer un produit par son id
     produit = get_produit_by_id(produit_id, db)
 
     db.delete(produit)
