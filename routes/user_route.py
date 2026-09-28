@@ -22,16 +22,15 @@ utilisateur_route = APIRouter(
 
 
 @utilisateur_route.post("/register", response_model=UserOut, status_code=status.HTTP_201_CREATED)
-def register(user: UserCreate, db: Session = Depends(get_db)):
+def register(
+    user: UserCreate,
+    db: Session = Depends(get_db),
+    _: Utilisateur = Depends(require_role("administrateur")),
+):
     try:
-        new_user = create_user(user, db)
+        return create_user(user, db)
     except ValueError as e:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(e)
-        )
-
-    return new_user
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(e))
 
 
 @utilisateur_route.post("/login", response_model=Token)
