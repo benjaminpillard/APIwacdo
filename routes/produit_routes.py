@@ -20,10 +20,12 @@ produit_router = APIRouter(
 def list_produits_route(
     skip: int = 0,
     limit: int = 10,
+    categorie_id: int | None = None,
+    disponible: bool | None = None,
     db: Session = Depends(get_db),
     _: Utilisateur = Depends(require_role("administrateur", "preparateur", "accueil"))
 ):
-    return produit_controller.list_produits(skip, limit, db)
+    return produit_controller.list_produits(skip, limit, db, categorie_id, disponible)
 
 
 @produit_router.get("/search", response_model=list[ProduitOut])

@@ -17,11 +17,24 @@ def create_produit(db: Session, produit: ProduitCreate):
     return produit_to_create
 
 
-def list_produits(skip: int, limit: int, db: Session):
-    # Pagination simple (offset/limit)
-    stmt = select(Produit).offset(skip).limit(limit)
-    return db.execute(stmt).scalars().all()
+def list_produits(
+    skip: int,
+    limit: int,
+    db: Session,
+    categorie_id: int | None = None,
+    disponible: bool | None = None,
+):
+    # Filtres facultatifs : on ne les applique que s'ils sont fournis
+    stmt = select(Produit)
 
+    if categorie_id is not None:
+        stmt = stmt.where(Produit.categorie_id == categorie_id)
+    if disponible is not None:
+        stmt = stmt.where(Produit.disponible == disponible)
+
+    # Tri par nom, puis pagination
+    stmt = stmt.order_by(Produit.nom).offset(skip).limit(limit)
+    return db.execute(stmt).scalars().all()
 
 def get_produit_by_id(produit_id: int, db: Session):
     produit = db.get(Produit, produit_id)
