@@ -1,29 +1,21 @@
-from sqlalchemy import Column, Integer, String, Float, DateTime
+from sqlalchemy import Column, Integer, String, Numeric, Boolean, DateTime, ForeignKey
+from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from models.database import Base
-from sqlalchemy.orm import relationship
-from models.menu_produit import association_table as menu_association_table
-from models.commande_produit import association_table as commande_association_table
-
 
 
 class Produit(Base):
     __tablename__ = "produits"
 
     id = Column(Integer, primary_key=True, index=True)
-    title = Column(String)
-    price = Column(Float)
-    currency = Column(String, default="EUR")
+    nom = Column(String(100), nullable=False, index=True)
+    description = Column(String(500))
+    prix = Column(Numeric(8, 2), nullable=False)
+    image_url = Column(String(255))
+    disponible = Column(Boolean, nullable=False, default=True)
+    categorie_id = Column(Integer, ForeignKey("categories.id"))
 
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
-    menus = relationship("Menu",
-            secondary=menu_association_table,
-            back_populates="produits"
-        )
-    
-    commandes = relationship("Commande",
-            secondary=commande_association_table,
-            back_populates="produits"
-        )
+    categorie = relationship("Categorie", back_populates="produits")
