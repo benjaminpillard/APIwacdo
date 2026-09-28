@@ -4,6 +4,7 @@ from fastapi import HTTPException
 
 from schemas.produit import ProduitCreate
 from models.produit import Produit
+from schemas.produit import ProduitCreate, ProduitUpdate
 
 
 def create_produit(db: Session, produit: ProduitCreate):
@@ -67,7 +68,7 @@ def get_produit_by_title(title: str, db: Session):
 def update_produit(
     db: Session,
     produit_id: int,
-    data: ProduitCreate
+    data: ProduitCreate | ProduitUpdate
 ):
     # Mettre a jour les champs recus
     produit = get_produit_by_id(produit_id, db)

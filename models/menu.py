@@ -32,12 +32,21 @@ class MenuGroupe(Base):
     nom = Column(String(50), nullable=False)
     obligatoire = Column(Boolean, nullable=False, default=True)
     max_choix = Column(Integer, nullable=False, default=1)
+    # Nouveau : si renseigné, le groupe propose les produits de cette catégorie
+    categorie_id = Column(Integer, ForeignKey("categories.id"))
 
     menu = relationship("Menu", back_populates="groupes")
+    categorie = relationship("Categorie")                       # nouveau
     options = relationship(
         "MenuGroupeProduit", back_populates="groupe", cascade="all, delete-orphan"
     )
 
+    @property
+    def produits_proposes(self):
+        # Les produits que le client peut choisir dans ce groupe
+        if self.categorie is not None:
+            return [p for p in self.categorie.produits if p.disponible]
+        return [o.produit for o in self.options if o.produit.disponible]
 
 class MenuGroupeProduit(Base):
     """Un produit proposé dans un groupe, avec un éventuel supplément de prix."""

@@ -6,7 +6,7 @@ from fastapi import HTTPException
 from schemas.categorie import CategorieCreate
 from models.categorie import Categorie
 from models.produit import Produit
-
+from models.menu import MenuGroupe
 
 def create_categorie(db: Session, categorie: CategorieCreate):
     categorie_to_create = Categorie(**categorie.model_dump())
@@ -65,6 +65,15 @@ def delete_categorie(db: Session, categorie_id: int):
             status_code=409,
             detail="Impossible de supprimer : des produits utilisent cette catégorie",
         )
-
+        # Un groupe de menu lié à cette catégorie s'appuie dessus pour ses choix
+    groupe_lie = db.execute(
+        select(MenuGroupe.id).where(MenuGroupe.categorie_id == categorie_id).limit(1)
+    ).first()
+    if groupe_lie is not None:
+        raise HTTPException(
+            status_code=409,
+            detail="Impossible de supprimer : un groupe de menu utilise cette catégorie",
+        )
+    
     db.delete(categorie)
     db.commit()

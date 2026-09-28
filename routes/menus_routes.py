@@ -6,7 +6,7 @@ from utils.auth import require_role
 from models.user import Utilisateur
 from models.database import get_db
 
-from schemas.menu import MenuCreate, MenuOut
+from schemas.menu import MenuCreate, MenuOut, GroupeCreate, OptionCreate
 
 from controllers import menu as menu_controller
 
@@ -17,14 +17,17 @@ menu_router = APIRouter(
 )
 
 
+# ---------- Menus ----------
+
 @menu_router.get("/", response_model=list[MenuOut])
 def list_menus_route(
     skip: int = 0,
     limit: int = 10,
+    disponible: bool | None = None,
     db: Session = Depends(get_db),
     _: Utilisateur = Depends(require_role("administrateur", "preparateur", "accueil"))
 ):
-    return menu_controller.list_menus(skip, limit, db)
+    return menu_controller.list_menus(skip, limit, db, disponible)
 
 
 @menu_router.get("/search", response_model=list[MenuOut])
@@ -74,21 +77,44 @@ def delete_menu_route(
     return None
 
 
-@menu_router.post("/{menu_id}/produits/{produit_id}", response_model=MenuOut)
-def add_produit_to_menu_route(
+# ---------- Groupes de choix d'un menu ----------
+
+@menu_router.post("/{menu_id}/groupes", response_model=MenuOut, status_code=status.HTTP_201_CREATED)
+def add_groupe_route(
     menu_id: int,
+    groupe: GroupeCreate,
+    db: Session = Depends(get_db),
+    _: Utilisateur = Depends(require_role("administrateur"))
+):
+    return menu_controller.add_groupe(db, menu_id, groupe)
+
+
+@menu_router.delete("/groupes/{groupe_id}", response_model=MenuOut)
+def delete_groupe_route(
+    groupe_id: int,
+    db: Session = Depends(get_db),
+    _: Utilisateur = Depends(require_role("administrateur"))
+):
+    return menu_controller.delete_groupe(db, groupe_id)
+
+
+# ---------- Produits proposés dans un groupe ----------
+
+@menu_router.post("/groupes/{groupe_id}/produits", response_model=MenuOut, status_code=status.HTTP_201_CREATED)
+def add_option_route(
+    groupe_id: int,
+    option: OptionCreate,
+    db: Session = Depends(get_db),
+    _: Utilisateur = Depends(require_role("administrateur"))
+):
+    return menu_controller.add_option(db, groupe_id, option)
+
+
+@menu_router.delete("/groupes/{groupe_id}/produits/{produit_id}", response_model=MenuOut)
+def remove_option_route(
+    groupe_id: int,
     produit_id: int,
     db: Session = Depends(get_db),
     _: Utilisateur = Depends(require_role("administrateur"))
 ):
-    return menu_controller.add_produit_to_menu(db, menu_id, produit_id)
-
-
-@menu_router.delete("/{menu_id}/produits/{produit_id}", response_model=MenuOut)
-def remove_produit_from_menu_route(
-    menu_id: int,
-    produit_id: int,
-    db: Session = Depends(get_db),
-    _: Utilisateur = Depends(require_role("administrateur"))
-):
-    return menu_controller.remove_produit_from_menu(db, menu_id, produit_id)
+    return menu_controller.remove_option(db, groupe_id, produit_id)

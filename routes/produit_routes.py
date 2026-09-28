@@ -5,8 +5,7 @@ from utils.auth import require_role
 
 from models.user import Utilisateur
 from models.database import get_db
-
-from schemas.produit import ProduitCreate, ProduitOut
+from schemas.produit import ProduitCreate, ProduitOut, ProduitUpdate
 
 from controllers import produit as produit_controller
 
@@ -64,6 +63,14 @@ def update_produit_route(
 ):
     return produit_controller.update_produit(db, produit_id, produit)
 
+@produit_router.patch("/{produit_id}", response_model=ProduitOut)
+def patch_produit_route(
+    produit_id: int,
+    produit: ProduitUpdate,
+    db: Session = Depends(get_db),
+    _: Utilisateur = Depends(require_role("administrateur"))
+):
+    return produit_controller.update_produit(db, produit_id, produit)
 
 @produit_router.delete("/{produit_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_produit_route(
