@@ -8,6 +8,7 @@ from routes.produit_routes import produit_router
 from routes.menus_routes import menu_router
 from routes.user_route import utilisateur_route
 from routes.commande_route import commande_router
+from routes.categorie_routes import categorie_router
 
 from utils.setting import settings
 
@@ -24,6 +25,7 @@ app.include_router(produit_router)
 app.include_router(menu_router)
 app.include_router(utilisateur_route)
 app.include_router(commande_router)
+app.include_router(categorie_router)
 
 # Autoriser les origines front configurees
 app.add_middleware(
