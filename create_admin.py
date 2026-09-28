@@ -1,11 +1,12 @@
 import getpass
-from models.database import SessionLocal
-from models.user import Utilisateur
-from models.commande import Commande
-from models.produit import Produit
-from models.menu import Menu
+
+from models import Base
+from models.database import SessionLocal, engine
 from schemas.user import UserCreate, Role
 from controllers.user import create_user
+
+# Crée les tables si elles n'existent pas encore
+Base.metadata.create_all(bind=engine)
 
 username = input("Username : ")
 email = input("Email : ")
