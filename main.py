@@ -16,7 +16,7 @@ from utils.setting import settings
 app = FastAPI()
 # Creer les tables au demarrage
 
-Base.metadata.create_all(bind=engine)
+# Base.metadata.create_all(bind=engine)  # remplacé par Alembic
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/users/login")
 
 # Brancher les routes de l'API
