@@ -5,7 +5,8 @@ from sqlalchemy.orm import Session
 from utils.jwt import create_access_token
 from utils.auth import get_current_user
 
-from schemas.user import UserCreate, UserOut
+from schemas.user import UserCreate, UserOut, UserUpdate
+from controllers.user import create_user, authenticate, update_user
 from schemas.token import Token
 
 from models.database import get_db
@@ -13,7 +14,6 @@ from models.user import Utilisateur
 
 from utils.auth import require_role
 
-from controllers.user import  create_user , authenticate
 
 utilisateur_route = APIRouter(
     prefix="/users",
@@ -57,6 +57,24 @@ async def login(
 @utilisateur_route.get("/me", response_model=UserOut)
 def read_users_me(current_user: Utilisateur = Depends(get_current_user)):
     return current_user
+
+@utilisateur_route.patch("/me", response_model=UserOut)
+def update_me(
+    data: UserUpdate,
+    db: Session = Depends(get_db),
+    current_user: Utilisateur = Depends(get_current_user)
+):
+    return update_user(db, current_user, data)
+
+
+@utilisateur_route.delete("/me", status_code=status.HTTP_204_NO_CONTENT)
+def delete_me(
+    db: Session = Depends(get_db),
+    current_user: Utilisateur = Depends(get_current_user)
+):
+    db.delete(current_user)
+    db.commit()
+    return None
 
 
 @utilisateur_route.get("/all", response_model=list[UserOut])
