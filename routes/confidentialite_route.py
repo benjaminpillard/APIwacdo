@@ -10,6 +10,15 @@ confidentialite_router = APIRouter(
 
 
 # Route publique : on doit pouvoir lire la politique AVANT de se connecter
-@confidentialite_router.get("/", response_model=PolitiqueConfidentialite)
+@confidentialite_router.get(
+    "/",
+    response_model=PolitiqueConfidentialite,
+    summary="Politique de confidentialité",
+)
 def politique_confidentialite():
+    """Informe sur les données personnelles stockées, leur usage, leur durée de conservation,
+    leurs destinataires et les droits de l'utilisateur.
+
+    **Route publique** : lisible sans être connecté.
+    """
     return confidentialite_controller.get_politique()
