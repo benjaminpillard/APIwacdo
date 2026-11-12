@@ -1,9 +1,6 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
+
 
 class Token(BaseModel):
-    access_token: str
-    token_type: str
-
-class TokenData(BaseModel):
-    username: str | None = None
-    email: str | None = None
+    access_token: str = Field(description="Token JWT à envoyer dans l'en-tête Authorization")
+    token_type: str = Field(description="Toujours « bearer »", examples=["bearer"])

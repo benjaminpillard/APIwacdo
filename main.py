@@ -21,8 +21,45 @@ from utils.setting import settings
 
 configurer_logs()
 
+DESCRIPTION = """
+API du **back-office Wacdo** : gestion du catalogue (produits, menus), des commandes
+et des comptes employés.
+
+## Authentification
+1. Se connecter avec `POST /users/login` (ou le bouton **Authorize** ci-dessous).
+2. Le token JWT obtenu est envoyé dans l'en-tête `Authorization: Bearer <token>`.
+
+## Rôles
+| Rôle | Peut... |
+|---|---|
+| **administrateur** | tout faire : catalogue, comptes, commandes |
+| **preparateur** | voir les commandes et les déclarer préparées |
+| **accueil** | saisir une commande et la remettre au client |
+
+## Cycle d'une commande
+`saisie` → `preparee` (préparateur) → `livree` (accueil)
+
+## Erreurs
+Toutes les erreurs ont la forme `{"detail": "message"}`.
+"""
+
+TAGS = [
+    {"name": "Utilisateurs", "description": "Connexion, comptes employés et données personnelles (RGPD)."},
+    {"name": "Produits", "description": "Catalogue : nom, description, prix, image, disponibilité."},
+    {"name": "Catégories", "description": "Classement des produits (Burgers, Boissons...)."},
+    {"name": "Menus", "description": "Menus et leur composition : groupes de choix et produits proposés."},
+    {"name": "Commandes", "description": "Saisie, préparation et remise des commandes."},
+    {"name": "RGPD", "description": "Information sur le traitement des données personnelles."},
+    {"name": "Santé", "description": "Vérification que l'API est en ligne."},
+]
+
 # Les tables sont créées et mises à jour par Alembic (alembic upgrade head)
-app = FastAPI()
+app = FastAPI(
+    title="API Wacdo — Back-office",
+    description=DESCRIPTION,
+    version="1.0.0",
+    openapi_tags=TAGS,
+)
 app.state.limiter = limiter
 
 # Brancher les routes de l'API
@@ -111,6 +148,6 @@ async def erreur_inattendue(request: Request, exc: Exception):
     )
 
 
-@app.get("/")
+@app.get("/", summary="Vérifier que l'API répond", tags=["Santé"])
 def accueil():
     return {"message": "API Wacdo fonctionnelle !"}

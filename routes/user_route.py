@@ -1,47 +1,48 @@
-from fastapi import APIRouter, HTTPException, Depends, Request, status
+from fastapi import APIRouter, HTTPException, Depends, Path, Request, status
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 
 from utils.jwt import create_access_token
-from utils.auth import get_current_user
-
-from schemas.user import UserCreate, UserOut, UserUpdate
-from controllers import user as user_controller
-from controllers.user import create_user, authenticate, update_user
-from schemas.token import Token
-
-from models.database import get_db
-from models.user import Utilisateur
-
-from utils.auth import require_role
+from utils.auth import get_current_user, require_role
+from utils.docs import AUTH, erreurs
 from utils.limiter import limiter
 from utils.logger import audit
 from utils.setting import settings
 
+from schemas.user import UserCreate, UserOut, UserUpdate
+from schemas.token import Token
+from controllers import user as user_controller
+
+from models.database import get_db
+from models.user import Utilisateur
+
 
 utilisateur_route = APIRouter(
     prefix="/users",
-    tags=["Users"]
+    tags=["Utilisateurs"]
 )
 
 
-@utilisateur_route.post("/register", response_model=UserOut, status_code=status.HTTP_201_CREATED)
-def register(
-    user: UserCreate,
-    db: Session = Depends(get_db),
-    _: Utilisateur = Depends(require_role("administrateur")),
-):
-    return create_user(user, db)
-
-
-@utilisateur_route.post("/login", response_model=Token)
+@utilisateur_route.post(
+    "/login",
+    response_model=Token,
+    summary="Se connecter (obtenir un token)",
+    responses=erreurs(401, 429),
+)
 @limiter.limit(settings.LOGIN_RATE_LIMIT)   # anti brute-force : nombre d'essais limité par IP
 def login(
     request: Request,   # requis par slowapi pour connaître l'IP
     form_data: OAuth2PasswordRequestForm = Depends(),
     db: Session = Depends(get_db)
 ):
-    user = authenticate(db, form_data.username, form_data.password)
+    """OAuth2 Password Flow : envoie `username` et `password` (formulaire), renvoie un token JWT.
+
+    Le token s'utilise ensuite dans l'en-tête `Authorization: Bearer <token>`
+    (dans Swagger : bouton **Authorize**).
+
+    Le nombre de tentatives est limité par adresse IP (**429** au-delà).
+    """
+    user = user_controller.authenticate(db, form_data.username, form_data.password)
     ip = request.client.host if request.client else "inconnue"
 
     if not user:
@@ -64,42 +65,110 @@ def login(
     return Token(access_token=token, token_type="bearer")
 
 
-@utilisateur_route.get("/me", response_model=UserOut)
+@utilisateur_route.post(
+    "/register",
+    response_model=UserOut,
+    status_code=status.HTTP_201_CREATED,
+    summary="Créer un compte employé",
+    responses=erreurs(*AUTH, 409),
+)
+def register(
+    user: UserCreate,
+    db: Session = Depends(get_db),
+    _: Utilisateur = Depends(require_role("administrateur")),
+):
+    """Le mot de passe est haché (Argon2) avant d'être enregistré, jamais stocké en clair.
+
+    Renvoie **409** si le nom d'utilisateur ou l'email est déjà pris.
+
+    **Rôle :** administrateur.
+    """
+    return user_controller.create_user(user, db)
+
+
+@utilisateur_route.get(
+    "/me",
+    response_model=UserOut,
+    summary="Consulter mes données (RGPD)",
+    responses=erreurs(401),
+)
 def read_users_me(current_user: Utilisateur = Depends(get_current_user)):
+    """Droit d'accès : renvoie les données du compte connecté. **Rôles :** tous."""
     return current_user
 
-@utilisateur_route.patch("/me", response_model=UserOut)
+
+@utilisateur_route.patch(
+    "/me",
+    response_model=UserOut,
+    summary="Modifier mes données (RGPD)",
+    responses=erreurs(401, 409),
+)
 def update_me(
     data: UserUpdate,
     db: Session = Depends(get_db),
     current_user: Utilisateur = Depends(get_current_user)
 ):
-    return update_user(db, current_user, data)
+    """Droit de rectification : nom d'utilisateur, email et/ou mot de passe.
+    Le rôle ne peut pas être modifié ici (on ne s'attribue pas de droits soi-même).
+
+    **Rôles :** tous.
+    """
+    return user_controller.update_user(db, current_user, data)
 
 
-@utilisateur_route.delete("/me", status_code=status.HTTP_204_NO_CONTENT)
+@utilisateur_route.delete(
+    "/me",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Supprimer mon compte (RGPD)",
+    responses=erreurs(401, 409),
+)
 def delete_me(
     db: Session = Depends(get_db),
     current_user: Utilisateur = Depends(get_current_user)
 ):
-    # Supprime le compte, ou l'anonymise s'il a saisi des commandes (voir le controller)
+    """Droit à l'effacement.
+    - Sans commande saisie : le compte est supprimé.
+    - Avec des commandes : le compte est **anonymisé** et désactivé, pour garder
+      un historique des commandes sans donnée personnelle.
+
+    Renvoie **409** pour le dernier administrateur.
+
+    **Rôles :** tous.
+    """
     user_controller.delete_user(db, current_user)
     return None
 
 
-@utilisateur_route.get("/all", response_model=list[UserOut])
+@utilisateur_route.get(
+    "/all",
+    response_model=list[UserOut],
+    summary="Lister les comptes",
+    responses=erreurs(*AUTH),
+)
 def read_all_users(
-    db: Session = Depends(get_db),
-    current_user: Utilisateur = Depends(require_role("administrateur"))
-):
-    return user_controller.list_users(db)
-
-@utilisateur_route.delete("/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_user(
-    user_id: int,
     db: Session = Depends(get_db),
     _: Utilisateur = Depends(require_role("administrateur"))
 ):
+    """**Rôle :** administrateur."""
+    return user_controller.list_users(db)
+
+
+@utilisateur_route.delete(
+    "/{user_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Supprimer un compte",
+    responses=erreurs(*AUTH, 404, 409),
+)
+def delete_user(
+    user_id: int = Path(description="Identifiant du compte", ge=1),
+    db: Session = Depends(get_db),
+    _: Utilisateur = Depends(require_role("administrateur"))
+):
+    """Même règle que `DELETE /users/me` : suppression, ou anonymisation si le compte
+    a saisi des commandes.
+
+    **Rôle :** administrateur.
+    """
     user = user_controller.get_user_by_id(db, user_id)
     user_controller.delete_user(db, user)
     return None
