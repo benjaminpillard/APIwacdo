@@ -1,6 +1,5 @@
 from datetime import datetime, timedelta, timezone
 import jwt
-from jwt.exceptions import InvalidTokenError
 from utils.setting import settings
 
 
@@ -18,9 +17,5 @@ def create_access_token(data: dict, expires_delta: timedelta | None = None):
 
 def decode_access_token(token: str):
     # Decoder et valider le token signe
-    try:
-        payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
-        return payload
-    except InvalidTokenError as e:
-        raise
-    
+    # Lève InvalidTokenError (ou ExpiredSignatureError) si le token est faux ou expiré
+    return jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
