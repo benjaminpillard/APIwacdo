@@ -6,6 +6,7 @@ from utils.jwt import create_access_token
 from utils.auth import get_current_user
 
 from schemas.user import UserCreate, UserOut, UserUpdate
+from controllers import user as user_controller
 from controllers.user import create_user, authenticate, update_user
 from schemas.token import Token
 
@@ -27,10 +28,7 @@ def register(
     db: Session = Depends(get_db),
     _: Utilisateur = Depends(require_role("administrateur")),
 ):
-    try:
-        return create_user(user, db)
-    except ValueError as e:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(e))
+    return create_user(user, db)
 
 
 @utilisateur_route.post("/login", response_model=Token)
@@ -43,7 +41,8 @@ async def login(
     if not user:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect username or password"
+            detail="Identifiant ou mot de passe incorrect",
+            headers={"WWW-Authenticate": "Bearer"},
         )
 
     token = create_access_token({
@@ -72,8 +71,8 @@ def delete_me(
     db: Session = Depends(get_db),
     current_user: Utilisateur = Depends(get_current_user)
 ):
-    db.delete(current_user)
-    db.commit()
+    # Supprime le compte, ou l'anonymise s'il a saisi des commandes (voir le controller)
+    user_controller.delete_user(db, current_user)
     return None
 
 
@@ -82,8 +81,7 @@ def read_all_users(
     db: Session = Depends(get_db),
     current_user: Utilisateur = Depends(require_role("administrateur"))
 ):
-    users = db.query(Utilisateur).all()
-    return users
+    return user_controller.list_users(db)
 
 @utilisateur_route.delete("/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_user(
@@ -91,15 +89,6 @@ def delete_user(
     db: Session = Depends(get_db),
     _: Utilisateur = Depends(require_role("administrateur"))
 ):
-    user = db.query(Utilisateur).filter(Utilisateur.id == user_id).first()
-
-    if user is None:
-        raise HTTPException(
-            status_code=404,
-            detail="Utilisateur introuvable"
-        )
-
-    db.delete(user)
-    db.commit()
-
+    user = user_controller.get_user_by_id(db, user_id)
+    user_controller.delete_user(db, user)
     return None

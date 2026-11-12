@@ -6,7 +6,7 @@ from sqlalchemy import pool
 from alembic import context
 
 import models  # charge tous les modèles pour qu'Alembic les connaisse
-from models.database import Base
+from models.database import Base, database_url
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
@@ -16,6 +16,11 @@ config = context.config
 # This line sets up loggers basically.
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
+
+# L'URL de la base vient du .env (DATABASE_URL), pas de alembic.ini :
+# ainsi les migrations visent la même base que l'application (SQLite en local, PostgreSQL sur Render).
+# Les « % » sont doublés car alembic.ini est lu par configparser.
+config.set_main_option("sqlalchemy.url", database_url.replace("%", "%%"))
 
 # add your model's MetaData object here
 # for 'autogenerate' support

@@ -1,12 +1,17 @@
+"""Crée un compte administrateur.
+
+Prérequis : la base doit être à jour (alembic upgrade head).
+Usage : python create_admin.py
+"""
 import getpass
 
-from models import Base
-from models.database import SessionLocal, engine
+from fastapi import HTTPException
+from pydantic import ValidationError
+
+import models  # charge tous les modèles (relations entre tables)
+from models.database import SessionLocal
 from schemas.user import UserCreate, Role
 from controllers.user import create_user
-
-# Crée les tables si elles n'existent pas encore
-Base.metadata.create_all(bind=engine)
 
 username = input("Username : ")
 email = input("Email : ")
@@ -19,5 +24,9 @@ try:
         db,
     )
     print(f"Admin créé : {admin.username}")
+except ValidationError as e:
+    print(f"Données invalides : {e}")
+except HTTPException as e:
+    print(f"Erreur : {e.detail}")
 finally:
     db.close()
