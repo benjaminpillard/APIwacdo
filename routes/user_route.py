@@ -11,7 +11,7 @@ from utils.setting import settings
 
 from schemas.user import UserCreate, UserOut, UserUpdate
 from schemas.token import Token
-from controllers import user as user_controller
+from controllers.user import utilisateur_controller
 
 from models.database import get_db
 from models.user import Utilisateur
@@ -42,7 +42,7 @@ def login(
 
     Le nombre de tentatives est limité par adresse IP (**429** au-delà).
     """
-    user = user_controller.authenticate(db, form_data.username, form_data.password)
+    user = utilisateur_controller.authentifier(db, form_data.username, form_data.password)
     ip = request.client.host if request.client else "inconnue"
 
     if not user:
@@ -83,7 +83,7 @@ def register(
 
     **Rôle :** administrateur.
     """
-    return user_controller.create_user(user, db)
+    return utilisateur_controller.create(db, user)
 
 
 @utilisateur_route.get(
@@ -113,7 +113,7 @@ def update_me(
 
     **Rôles :** tous.
     """
-    return user_controller.update_user(db, current_user, data)
+    return utilisateur_controller.update(db, current_user, data)
 
 
 @utilisateur_route.delete(
@@ -135,7 +135,7 @@ def delete_me(
 
     **Rôles :** tous.
     """
-    user_controller.delete_user(db, current_user)
+    utilisateur_controller.delete(db, current_user)
     return None
 
 
@@ -150,7 +150,7 @@ def read_all_users(
     _: Utilisateur = Depends(require_role("administrateur"))
 ):
     """**Rôle :** administrateur."""
-    return user_controller.list_users(db)
+    return utilisateur_controller.lister_tous(db)
 
 
 @utilisateur_route.delete(
@@ -169,6 +169,5 @@ def delete_user(
 
     **Rôle :** administrateur.
     """
-    user = user_controller.get_user_by_id(db, user_id)
-    user_controller.delete_user(db, user)
+    utilisateur_controller.delete(db, utilisateur_controller.get(db, user_id))
     return None

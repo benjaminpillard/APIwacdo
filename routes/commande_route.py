@@ -9,7 +9,7 @@ from utils.docs import AUTH, erreurs
 
 from schemas.commande import CommandeCreate, CommandeOut
 
-from controllers import commande as commande_controller
+from controllers.commande import commande_controller
 
 commande_router = APIRouter(
     prefix="/commandes",
@@ -41,7 +41,7 @@ def list_commandes_route(
 
     **Rôles :** tous.
     """
-    return commande_controller.list_commandes(skip, limit, db, statut, mode)
+    return commande_controller.lister_filtre(db, skip, limit, statut, mode)
 
 
 @commande_router.get(
@@ -56,7 +56,7 @@ def get_commande_route(
     _: Utilisateur = Depends(require_role("administrateur", "preparateur", "accueil"))
 ):
     """Lignes, produits, menus et choix faits dans chaque menu. **Rôles :** tous."""
-    return commande_controller.get_commande(db, commande_id)
+    return commande_controller.get(db, commande_id)
 
 
 @commande_router.post(
@@ -83,7 +83,7 @@ def create_commande_route(
 
     **Rôles :** accueil, administrateur.
     """
-    return commande_controller.create_commande(db, commande, int(current_user.id))
+    return commande_controller.saisir(db, commande, int(current_user.id))
 
 
 @commande_router.post(
@@ -142,5 +142,5 @@ def delete_commande_route(
     current_user: Utilisateur = Depends(require_role("administrateur"))
 ):
     """Supprime la commande avec ses lignes et ses choix. **Rôle :** administrateur."""
-    commande_controller.delete_commande(db, commande_id, str(current_user.username))
+    commande_controller.supprimer(db, commande_id, str(current_user.username))
     return None
