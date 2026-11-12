@@ -58,3 +58,7 @@ urllib3==2.7.0
 uvicorn==0.51.0
 watchfiles==1.2.0
 websockets==16.1.1
+slowapi==0.1.10
+limits==5.8.0
+Deprecated==3.0.1
+wrapt==2.5.2

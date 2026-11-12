@@ -93,3 +93,24 @@ def test_admin_supprimable_s_il_en_reste_un_autre(client, creer_compte):
         headers=admin,
     )
     assert client.delete("/users/me", headers=admin).status_code == 204
+
+
+def test_politique_de_confidentialite_publique(client):
+    # Lisible sans être connecté : on doit être informé AVANT de donner ses données
+    reponse = client.get("/confidentialite/")
+    assert reponse.status_code == 200
+    corps = reponse.json()
+    donnees = [d["donnee"] for d in corps["donnees_collectees"]]
+    assert "Adresse email" in donnees
+    assert {d["comment"] for d in corps["droits"]} == {"GET /users/me", "PATCH /users/me", "DELETE /users/me"}
+
+
+def test_compte_anonymise_est_desactive(client, creer_compte):
+    admin = creer_compte(Role.administrateur)
+    accueil = creer_compte(Role.accueil)
+    commande = _passer_une_commande(client, admin, accueil)
+    client.delete("/users/me", headers=accueil)
+
+    utilisateurs = client.get("/users/all", headers=admin).json()
+    anonyme = next(u for u in utilisateurs if u["id"] == commande["utilisateur_id"])
+    assert anonyme["actif"] is False

@@ -9,6 +9,7 @@ from models.database import Base, get_db
 from main import app
 from schemas.user import UserCreate
 from controllers.user import create_user
+from utils.limiter import limiter
 
 MOT_DE_PASSE = "Test1234!"
 
@@ -38,9 +39,14 @@ def client(session_factory):
             db.close()
 
     app.dependency_overrides[get_db] = override_get_db
+    # Les tests se connectent très souvent : la limite anti brute-force est coupée par défaut
+    # (elle est réactivée dans le test qui la vérifie)
+    limiter.enabled = False
     with TestClient(app) as c:
         yield c
     app.dependency_overrides.clear()
+    limiter.enabled = True
+    limiter.reset()
 
 
 @pytest.fixture()

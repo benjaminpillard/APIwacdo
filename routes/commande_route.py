@@ -53,27 +53,31 @@ def create_commande_route(
 def preparer_commande_route(
     commande_id: int,
     db: Session = Depends(get_db),
-    _: Utilisateur = Depends(require_role("administrateur", "preparateur"))
+    current_user: Utilisateur = Depends(require_role("administrateur", "preparateur"))
 ):
     # saisie -> preparee
-    return commande_controller.changer_statut(db, commande_id, StatutCommande.preparee)
+    return commande_controller.changer_statut(
+        db, commande_id, StatutCommande.preparee, str(current_user.username)
+    )
 
 
 @commande_router.post("/{commande_id}/livrer", response_model=CommandeOut)
 def livrer_commande_route(
     commande_id: int,
     db: Session = Depends(get_db),
-    _: Utilisateur = Depends(require_role("administrateur", "accueil"))
+    current_user: Utilisateur = Depends(require_role("administrateur", "accueil"))
 ):
     # preparee -> livree
-    return commande_controller.changer_statut(db, commande_id, StatutCommande.livree)
+    return commande_controller.changer_statut(
+        db, commande_id, StatutCommande.livree, str(current_user.username)
+    )
 
 
 @commande_router.delete("/{commande_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_commande_route(
     commande_id: int,
     db: Session = Depends(get_db),
-    _: Utilisateur = Depends(require_role("administrateur"))
+    current_user: Utilisateur = Depends(require_role("administrateur"))
 ):
-    commande_controller.delete_commande(db, commande_id)
+    commande_controller.delete_commande(db, commande_id, str(current_user.username))
     return None
