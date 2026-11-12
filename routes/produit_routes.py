@@ -8,7 +8,7 @@ from models.user import Utilisateur
 from models.database import get_db
 from schemas.produit import ProduitCreate, ProduitOut, ProduitUpdate
 
-from controllers import produit as produit_controller
+from controllers.produit import produit_controller
 
 produit_router = APIRouter(
     prefix="/produits",
@@ -36,7 +36,7 @@ def list_produits_route(
 
     **Rôles :** tous.
     """
-    return produit_controller.list_produits(skip, limit, db, categorie_id, disponible)
+    return produit_controller.lister_filtre(db, skip, limit, categorie_id, disponible)
 
 
 @produit_router.get(
@@ -54,7 +54,7 @@ def search_produits_route(
 
     **Rôles :** tous. Renvoie 404 si aucun produit ne correspond.
     """
-    return produit_controller.get_produit_by_title(title, db)
+    return produit_controller.rechercher(db, title)
 
 
 @produit_router.get(
@@ -69,7 +69,7 @@ def get_produit_route(
     _: Utilisateur = Depends(require_role("administrateur", "preparateur", "accueil"))
 ):
     """**Rôles :** tous."""
-    return produit_controller.get_produit_by_id(produit_id, db)
+    return produit_controller.get(db, produit_id)
 
 
 @produit_router.post(
@@ -88,7 +88,7 @@ def create_produit_route(
 
     **Rôle :** administrateur. Renvoie 404 si la catégorie indiquée n'existe pas.
     """
-    return produit_controller.create_produit(db, produit)
+    return produit_controller.create(db, produit)
 
 
 @produit_router.put(
@@ -103,8 +103,12 @@ def update_produit_route(
     db: Session = Depends(get_db),
     _: Utilisateur = Depends(require_role("administrateur"))
 ):
-    """**Rôle :** administrateur."""
-    return produit_controller.update_produit(db, produit_id, produit)
+    """Remplace toutes les informations du produit (les champs absents reprennent leur valeur par défaut).
+
+    **Rôle :** administrateur.
+    """
+    produit_existant = produit_controller.get(db, produit_id)
+    return produit_controller.update(db, produit_existant, produit, partiel=False)
 
 
 @produit_router.patch(
@@ -124,7 +128,8 @@ def patch_produit_route(
 
     **Rôle :** administrateur.
     """
-    return produit_controller.update_produit(db, produit_id, produit)
+    produit_existant = produit_controller.get(db, produit_id)
+    return produit_controller.update(db, produit_existant, produit, partiel=True)
 
 
 @produit_router.delete(
@@ -145,5 +150,5 @@ def delete_produit_route(
 
     **Rôle :** administrateur.
     """
-    produit_controller.delete_produit(db, produit_id)
+    produit_controller.delete(db, produit_controller.get(db, produit_id))
     return None

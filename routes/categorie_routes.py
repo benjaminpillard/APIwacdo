@@ -9,7 +9,7 @@ from models.database import get_db
 
 from schemas.categorie import CategorieCreate, CategorieOut
 
-from controllers import categorie as categorie_controller
+from controllers.categorie import categorie_controller
 
 categorie_router = APIRouter(
     prefix="/categories",
@@ -30,7 +30,7 @@ def list_categories_route(
     _: Utilisateur = Depends(require_role("administrateur", "preparateur", "accueil"))
 ):
     """Liste triée par nom. **Rôles :** tous."""
-    return categorie_controller.list_categories(db)
+    return categorie_controller.lister_toutes(db)
 
 
 @categorie_router.get(
@@ -45,7 +45,7 @@ def get_categorie_route(
     _: Utilisateur = Depends(require_role("administrateur", "preparateur", "accueil"))
 ):
     """**Rôles :** tous."""
-    return categorie_controller.get_categorie_by_id(categorie_id, db)
+    return categorie_controller.get(db, categorie_id)
 
 
 @categorie_router.post(
@@ -64,7 +64,7 @@ def create_categorie_route(
 
     **Rôle :** administrateur.
     """
-    return categorie_controller.create_categorie(db, categorie)
+    return categorie_controller.create(db, categorie)
 
 
 @categorie_router.put(
@@ -80,7 +80,8 @@ def update_categorie_route(
     _: Utilisateur = Depends(require_role("administrateur"))
 ):
     """**Rôle :** administrateur."""
-    return categorie_controller.update_categorie(db, categorie_id, categorie)
+    existante = categorie_controller.get(db, categorie_id)
+    return categorie_controller.update(db, existante, categorie, partiel=False)
 
 
 @categorie_router.delete(
@@ -98,5 +99,5 @@ def delete_categorie_route(
 
     **Rôle :** administrateur.
     """
-    categorie_controller.delete_categorie(db, categorie_id)
+    categorie_controller.delete(db, categorie_controller.get(db, categorie_id))
     return None

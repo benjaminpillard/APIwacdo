@@ -8,7 +8,7 @@ import models  # charge tous les modèles
 from models.database import Base, get_db
 from main import app
 from schemas.user import UserCreate
-from controllers.user import create_user
+from controllers.user import utilisateur_controller
 from utils.limiter import limiter
 
 MOT_DE_PASSE = "Test1234!"
@@ -55,14 +55,14 @@ def creer_compte(client, session_factory):
     def _creer(role):
         db = session_factory()
         try:
-            create_user(
+            utilisateur_controller.create(
+                db,
                 UserCreate(
                     username=role.value,
                     email=f"{role.value}@test.fr",
                     password=MOT_DE_PASSE,
                     role=role,
                 ),
-                db,
             )
         finally:
             db.close()

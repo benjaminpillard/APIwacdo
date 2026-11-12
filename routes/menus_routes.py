@@ -9,7 +9,7 @@ from models.database import get_db
 
 from schemas.menu import MenuCreate, MenuOut, GroupeCreate, OptionCreate
 
-from controllers import menu as menu_controller
+from controllers.menu import menu_controller, groupe_controller
 
 
 menu_router = APIRouter(
@@ -41,7 +41,7 @@ def list_menus_route(
 
     **Rôles :** tous.
     """
-    return menu_controller.list_menus(skip, limit, db, disponible)
+    return menu_controller.lister_filtre(db, skip, limit, disponible)
 
 
 @menu_router.get(
@@ -56,7 +56,7 @@ def search_menu_route(
     _: Utilisateur = Depends(require_role("administrateur", "preparateur", "accueil"))
 ):
     """**Rôles :** tous. Renvoie 404 si aucun menu ne correspond."""
-    return menu_controller.get_menu_by_nom(nom, db)
+    return menu_controller.rechercher(db, nom)
 
 
 @menu_router.get(
@@ -71,7 +71,7 @@ def get_menu_route(
     _: Utilisateur = Depends(require_role("administrateur", "preparateur", "accueil"))
 ):
     """**Rôles :** tous."""
-    return menu_controller.get_menu_by_id(menu_id, db)
+    return menu_controller.get(db, menu_id)
 
 
 @menu_router.post(
@@ -91,7 +91,7 @@ def create_menu_route(
 
     **Rôle :** administrateur. Renvoie 404 si le produit principal n'existe pas.
     """
-    return menu_controller.create_menu(db, menu)
+    return menu_controller.create(db, menu)
 
 
 @menu_router.put(
@@ -107,7 +107,8 @@ def update_menu_route(
     _: Utilisateur = Depends(require_role("administrateur"))
 ):
     """**Rôle :** administrateur."""
-    return menu_controller.update_menu(db, menu_id, menu)
+    menu_existant = menu_controller.get(db, menu_id)
+    return menu_controller.update(db, menu_existant, menu, partiel=False)
 
 
 @menu_router.delete(
@@ -125,7 +126,7 @@ def delete_menu_route(
 
     **Rôle :** administrateur.
     """
-    menu_controller.delete_menu(db, menu_id)
+    menu_controller.delete(db, menu_controller.get(db, menu_id))
     return None
 
 
@@ -150,7 +151,7 @@ def add_groupe_route(
 
     **Rôle :** administrateur. Renvoie le menu complet mis à jour.
     """
-    return menu_controller.add_groupe(db, menu_id, groupe)
+    return groupe_controller.ajouter(db, menu_id, groupe)
 
 
 @menu_router.delete(
@@ -168,7 +169,7 @@ def delete_groupe_route(
 
     **Rôle :** administrateur.
     """
-    return menu_controller.delete_groupe(db, groupe_id)
+    return groupe_controller.supprimer(db, groupe_id)
 
 
 # ---------- Produits proposés dans un groupe ----------
@@ -194,7 +195,7 @@ def add_option_route(
 
     **Rôle :** administrateur.
     """
-    return menu_controller.add_option(db, groupe_id, option)
+    return groupe_controller.ajouter_option(db, groupe_id, option)
 
 
 @menu_router.delete(
@@ -210,4 +211,4 @@ def remove_option_route(
     _: Utilisateur = Depends(require_role("administrateur"))
 ):
     """**Rôle :** administrateur."""
-    return menu_controller.remove_option(db, groupe_id, produit_id)
+    return groupe_controller.retirer_option(db, groupe_id, produit_id)

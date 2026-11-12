@@ -1,124 +1,68 @@
-from sqlalchemy.orm import Session
-from sqlalchemy import select
 from fastapi import HTTPException
+from pydantic import BaseModel
+from sqlalchemy import select
+from sqlalchemy.orm import Session
 
-from models.produit import Produit
+from controllers.base import CRUDBase
 from models.categorie import Categorie
-from models.menu import Menu, MenuGroupeProduit
 from models.commande import LigneCommande, LigneCommandeChoix
-from schemas.produit import ProduitCreate, ProduitUpdate
+from models.menu import Menu, MenuGroupeProduit
+from models.produit import Produit
 
 
-def _verifier_categorie(db: Session, categorie_id: int | None):
-    # Une catégorie inexistante donnerait une erreur de clé étrangère : on renvoie une 404 claire
-    if categorie_id is not None and db.get(Categorie, categorie_id) is None:
-        raise HTTPException(status_code=404, detail="Catégorie introuvable")
+class ProduitController(CRUDBase[Produit]):
+    message_introuvable = "Produit introuvable"
+
+    def lister_filtre(
+        self,
+        db: Session,
+        skip: int,
+        limit: int,
+        categorie_id: int | None = None,
+        disponible: bool | None = None,
+    ):
+        # Filtres facultatifs : on ne les applique que s'ils sont fournis
+        filtres = []
+        if categorie_id is not None:
+            filtres.append(Produit.categorie_id == categorie_id)
+        if disponible is not None:
+            filtres.append(Produit.disponible == disponible)
+        return self.lister(db, skip=skip, limit=limit, filtres=filtres, tri=[Produit.nom])
+
+    def rechercher(self, db: Session, texte: str):
+        # Requête paramétrée par SQLAlchemy : pas d'injection SQL possible
+        produits = self.lister(db, filtres=[Produit.nom.ilike(f"%{texte}%")], tri=[Produit.nom])
+        if not produits:
+            raise HTTPException(status_code=404, detail="Aucun produit trouvé")
+        return produits
+
+    def create(self, db: Session, donnees: BaseModel | dict) -> Produit:
+        # Surcharge : la catégorie indiquée doit exister
+        self._verifier_categorie(db, donnees)
+        return super().create(db, donnees)
+
+    def update(self, db: Session, produit: Produit, donnees: BaseModel | dict, *, partiel: bool = True) -> Produit:
+        self._verifier_categorie(db, donnees)
+        return super().update(db, produit, donnees, partiel=partiel)
+
+    def delete(self, db: Session, produit: Produit) -> None:
+        # Surcharge : on garde l'historique et la cohérence des menus.
+        # Un produit déjà utilisé ne se supprime pas, on le rend indisponible.
+        self.verifier_non_utilise(db, [
+            (select(LigneCommande.id).where(LigneCommande.produit_id == produit.id),
+             "il a déjà été commandé (rendez-le indisponible plutôt)"),
+            (select(LigneCommandeChoix.id).where(LigneCommandeChoix.produit_id == produit.id),
+             "il a déjà été choisi dans un menu commandé (rendez-le indisponible plutôt)"),
+            (select(Menu.id).where(Menu.produit_principal_id == produit.id),
+             "il est le produit principal d'un menu (rendez-le indisponible plutôt)"),
+            (select(MenuGroupeProduit.id).where(MenuGroupeProduit.produit_id == produit.id),
+             "il est proposé dans un menu (rendez-le indisponible plutôt)"),
+        ])
+        super().delete(db, produit)
+
+    def _verifier_categorie(self, db: Session, donnees: BaseModel | dict) -> None:
+        valeurs = donnees.model_dump(exclude_unset=True) if isinstance(donnees, BaseModel) else donnees
+        self.verifier_existe(db, Categorie, valeurs.get("categorie_id"), "Catégorie introuvable")
 
 
-def create_produit(db: Session, produit: ProduitCreate):
-    # Construire puis enregistrer un produit
-    _verifier_categorie(db, produit.categorie_id)
-    produit_to_create = Produit(**produit.model_dump())
-
-    db.add(produit_to_create)
-    db.commit()
-    db.refresh(produit_to_create)
-
-    return produit_to_create
-
-
-def list_produits(
-    skip: int,
-    limit: int,
-    db: Session,
-    categorie_id: int | None = None,
-    disponible: bool | None = None,
-):
-    # Filtres facultatifs : on ne les applique que s'ils sont fournis
-    stmt = select(Produit)
-
-    if categorie_id is not None:
-        stmt = stmt.where(Produit.categorie_id == categorie_id)
-    if disponible is not None:
-        stmt = stmt.where(Produit.disponible == disponible)
-
-    # Tri par nom, puis pagination
-    stmt = stmt.order_by(Produit.nom).offset(skip).limit(limit)
-    return db.execute(stmt).scalars().all()
-
-def get_produit_by_id(produit_id: int, db: Session):
-    produit = db.get(Produit, produit_id)
-
-    if produit is None:
-        raise HTTPException(
-            status_code=404,
-            detail="Produit introuvable"
-        )
-
-    return produit
-
-
-def get_produit_by_title(title: str, db: Session):
-    produits = (
-        db.query(Produit)
-        .filter(Produit.nom.ilike(f"%{title}%"))
-        .all()
-    )
-
-    if not produits:
-        raise HTTPException(
-            status_code=404,
-            detail="Aucun produit trouvé"
-        )
-
-    return produits
-
-
-def update_produit(
-    db: Session,
-    produit_id: int,
-    data: ProduitCreate | ProduitUpdate
-):
-    # Mettre a jour les champs recus
-    produit = get_produit_by_id(produit_id, db)
-    changements = data.model_dump(exclude_unset=True)
-
-    if "categorie_id" in changements:
-        _verifier_categorie(db, changements["categorie_id"])
-
-    for key, value in changements.items():
-        setattr(produit, key, value)
-
-    db.commit()
-    db.refresh(produit)
-
-    return produit
-
-
-def delete_produit(db: Session, produit_id: int):
-    # Supprimer un produit par son id
-    produit = get_produit_by_id(produit_id, db)
-
-    # On garde l'historique et la cohérence des menus : un produit déjà utilisé
-    # ne peut pas être supprimé, on le rend indisponible à la place.
-    utilisations = [
-        (select(LigneCommande.id).where(LigneCommande.produit_id == produit_id),
-         "il a déjà été commandé"),
-        (select(LigneCommandeChoix.id).where(LigneCommandeChoix.produit_id == produit_id),
-         "il a déjà été choisi dans un menu commandé"),
-        (select(Menu.id).where(Menu.produit_principal_id == produit_id),
-         "il est le produit principal d'un menu"),
-        (select(MenuGroupeProduit.id).where(MenuGroupeProduit.produit_id == produit_id),
-         "il est proposé dans un menu"),
-    ]
-    for requete, raison in utilisations:
-        if db.execute(requete.limit(1)).first() is not None:
-            raise HTTPException(
-                status_code=409,
-                detail=f"Impossible de supprimer : {raison} (rendez-le indisponible plutôt)",
-            )
-
-    db.delete(produit)
-    db.commit()
-
-    return produit
+produit_controller = ProduitController(Produit)

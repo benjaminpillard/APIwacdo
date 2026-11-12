@@ -11,7 +11,7 @@ from pydantic import ValidationError
 import models  # charge tous les modèles (relations entre tables)
 from models.database import SessionLocal
 from schemas.user import UserCreate, Role
-from controllers.user import create_user
+from controllers.user import utilisateur_controller
 
 username = input("Username : ")
 email = input("Email : ")
@@ -19,9 +19,9 @@ password = getpass.getpass("Mot de passe : ")
 
 db = SessionLocal()
 try:
-    admin = create_user(
-        UserCreate(username=username, email=email, password=password, role=Role.administrateur),
+    admin = utilisateur_controller.create(
         db,
+        UserCreate(username=username, email=email, password=password, role=Role.administrateur),
     )
     print(f"Admin créé : {admin.username}")
 except ValidationError as e:
