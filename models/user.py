@@ -11,7 +11,7 @@ class Utilisateur(Base):
     username = Column(String, unique=True, index=True)
     email = Column(String, unique=True, index=True)
     password = Column(String, nullable=False)
-    role = Column(String, default="Accueil")  # Default role is 'user'
+    role = Column(String, default="accueil")  # rôle par défaut : le moins de droits
 
     commandes = relationship("Commande", back_populates="utilisateur")
 
