@@ -11,6 +11,7 @@ from models.commande import Commande
 from schemas.user import UserCreate, UserUpdate, Role
 
 from utils.hash import hash_password, verify_password
+from utils.logger import audit
 
 
 def create_user(user: UserCreate, db: Session) -> Utilisateur:
@@ -27,6 +28,7 @@ def create_user(user: UserCreate, db: Session) -> Utilisateur:
         db.rollback()
         raise HTTPException(status_code=409, detail="Nom d'utilisateur ou email déjà utilisé")
     db.refresh(user_to_create)
+    audit.info("Compte créé : utilisateur=%s rôle=%s", user_to_create.username, user_to_create.role)
     return user_to_create
 
 
@@ -34,7 +36,8 @@ def authenticate(db: Session, username: str, password: str) -> Utilisateur | Non
     stmt = select(Utilisateur).where(Utilisateur.username == username)
     user = db.execute(stmt).scalars().first()
 
-    if not user:
+    # Un compte anonymisé (RGPD) ne peut plus se connecter
+    if not user or not user.actif:
         return None
 
     if verify_password(cast(str, user.password), password):
@@ -105,7 +108,9 @@ def delete_user(db: Session, user: Utilisateur) -> None:
         select(Commande.id).where(Commande.utilisateur_id == user.id).limit(1)
     ).first() is not None
 
+    ancien_nom = user.username
     if a_des_commandes:
+        user.actif = False
         user.username = f"supprime_{user.id}"
         user.email = f"supprime_{user.id}@example.com"   # domaine réservé, n'appartient à personne
         # Mot de passe aléatoire jamais communiqué : plus aucune connexion possible
@@ -114,3 +119,8 @@ def delete_user(db: Session, user: Utilisateur) -> None:
         db.delete(user)
 
     db.commit()
+    audit.info(
+        "Compte %s : ancien utilisateur=%s",
+        "anonymisé (il a des commandes)" if a_des_commandes else "supprimé",
+        ancien_nom,
+    )
