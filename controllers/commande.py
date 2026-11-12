@@ -10,6 +10,7 @@ from models.commande import Commande, LigneCommande, LigneCommandeChoix
 from models.enums import StatutCommande, ModeCommande
 from models.produit import Produit
 from schemas.commande import CommandeCreate, LigneCreate, ChoixCreate
+from utils.logger import audit
 
 # Les changements de statut autorisés : on ne peut pas sauter d'étape ni revenir en arrière
 TRANSITIONS = {
@@ -149,6 +150,10 @@ def create_commande(db: Session, data: CommandeCreate, utilisateur_id: int):
         db.rollback()
         raise HTTPException(status_code=409, detail="Ce numéro de commande existe déjà")
 
+    audit.info(
+        "Commande créée : numéro=%s mode=%s total=%s utilisateur_id=%s",
+        commande.numero, commande.mode.value, commande.total, utilisateur_id,
+    )
     return get_commande(db, int(commande.id))
 
 
@@ -185,7 +190,7 @@ def get_commande(db: Session, commande_id: int):
     return commande
 
 
-def changer_statut(db: Session, commande_id: int, nouveau: StatutCommande):
+def changer_statut(db: Session, commande_id: int, nouveau: StatutCommande, auteur: str = "?"):
     commande = get_commande(db, commande_id)
 
     if nouveau not in TRANSITIONS[commande.statut]:
@@ -194,14 +199,21 @@ def changer_statut(db: Session, commande_id: int, nouveau: StatutCommande):
             detail=f"Passage de « {commande.statut.value} » à « {nouveau.value} » impossible",
         )
 
+    ancien = commande.statut
     commande.statut = nouveau
     db.commit()
+    audit.info(
+        "Statut de commande : numéro=%s %s -> %s par=%s",
+        commande.numero, ancien.value, nouveau.value, auteur,
+    )
 
     return get_commande(db, commande_id)
 
 
-def delete_commande(db: Session, commande_id: int):
+def delete_commande(db: Session, commande_id: int, auteur: str = "?"):
     commande = get_commande(db, commande_id)
+    numero = commande.numero
 
     db.delete(commande)  # les lignes et leurs choix partent avec (cascade)
     db.commit()
+    audit.info("Commande supprimée : numéro=%s par=%s", numero, auteur)

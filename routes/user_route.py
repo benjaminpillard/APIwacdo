@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, Depends, status
+from fastapi import APIRouter, HTTPException, Depends, Request, status
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 
@@ -14,6 +14,9 @@ from models.database import get_db
 from models.user import Utilisateur
 
 from utils.auth import require_role
+from utils.limiter import limiter
+from utils.logger import audit
+from utils.setting import settings
 
 
 utilisateur_route = APIRouter(
@@ -32,23 +35,31 @@ def register(
 
 
 @utilisateur_route.post("/login", response_model=Token)
-async def login(
+@limiter.limit(settings.LOGIN_RATE_LIMIT)   # anti brute-force : nombre d'essais limité par IP
+def login(
+    request: Request,   # requis par slowapi pour connaître l'IP
     form_data: OAuth2PasswordRequestForm = Depends(),
     db: Session = Depends(get_db)
 ):
     user = authenticate(db, form_data.username, form_data.password)
+    ip = request.client.host if request.client else "inconnue"
 
     if not user:
+        audit.warning("Connexion échouée : identifiant=%s ip=%s", form_data.username, ip)
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Identifiant ou mot de passe incorrect",
             headers={"WWW-Authenticate": "Bearer"},
         )
 
+    # « sub » (subject) = identifiant stable de l'utilisateur, standard des JWT.
+    # Pas d'email dans le token : un JWT est seulement encodé, pas chiffré (lisible par tous).
     token = create_access_token({
+        "sub": str(user.id),
         "username": user.username,
-        "email": user.email
+        "role": user.role,
     })
+    audit.info("Connexion réussie : utilisateur=%s ip=%s", user.username, ip)
 
     return Token(access_token=token, token_type="bearer")
 

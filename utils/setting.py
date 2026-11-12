@@ -6,6 +6,10 @@ class Settings(BaseSettings):
     ALGORITHM: str
     DATABASE_URL: str
     CORS_ORIGINS: str = ""
+    # Durée de validité d'un token de connexion
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 60
+    # Nombre maximal de tentatives de connexion par adresse IP (anti brute-force)
+    LOGIN_RATE_LIMIT: str = "5/minute"
 
     model_config = SettingsConfigDict(env_file=".env")
 
