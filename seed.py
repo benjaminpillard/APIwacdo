@@ -178,10 +178,18 @@ if __name__ == "__main__":
     from pydantic import ValidationError
     from models.database import SessionLocal
 
+    def demander_mot_de_passe(compte: str) -> str:
+        # Rien ne s'affiche pendant la saisie : c'est normal (le mot de passe reste invisible)
+        while True:
+            mot_de_passe = getpass.getpass(f"Mot de passe de {compte} (invisible pendant la saisie) : ")
+            if len(mot_de_passe) >= 8:
+                return mot_de_passe
+            print("  8 caractères minimum, recommencez.")
+
     print("Données de démonstration Wacdo")
     print("Comptes créés : preparateur_demo et accueil_demo (8 caractères minimum)")
-    mdp_prepa = getpass.getpass("Mot de passe de preparateur_demo : ")
-    mdp_accueil = getpass.getpass("Mot de passe de accueil_demo : ")
+    mdp_prepa = demander_mot_de_passe("preparateur_demo")
+    mdp_accueil = demander_mot_de_passe("accueil_demo")
 
     session = SessionLocal()
     try:
@@ -191,7 +199,9 @@ if __name__ == "__main__":
                                 (Utilisateur, "comptes"), (Commande, "commandes")]:
             print(f"  {session.query(modele).count():>3} {libelle}")
     except ValidationError as e:
-        print(f"Données invalides : {e}")
+        # On n'affiche que le champ et la règle, jamais la valeur saisie (ce peut être un mot de passe)
+        for erreur in e.errors():
+            print(f"Données invalides : {'.'.join(map(str, erreur['loc']))} : {erreur['msg']}")
     except HTTPException as e:
         print(f"Erreur : {e.detail}")
     finally:

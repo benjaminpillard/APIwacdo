@@ -15,7 +15,8 @@ from controllers.user import utilisateur_controller
 
 username = input("Username : ")
 email = input("Email : ")
-password = getpass.getpass("Mot de passe : ")
+# Rien ne s'affiche pendant la saisie : c'est normal (le mot de passe reste invisible)
+password = getpass.getpass("Mot de passe (invisible pendant la saisie, 8 caractères minimum) : ")
 
 db = SessionLocal()
 try:
@@ -25,7 +26,9 @@ try:
     )
     print(f"Admin créé : {admin.username}")
 except ValidationError as e:
-    print(f"Données invalides : {e}")
+    # On n'affiche que le champ et la règle, jamais la valeur saisie (ce peut être le mot de passe)
+    for erreur in e.errors():
+        print(f"Données invalides : {'.'.join(map(str, erreur['loc']))} : {erreur['msg']}")
 except HTTPException as e:
     print(f"Erreur : {e.detail}")
 finally:
