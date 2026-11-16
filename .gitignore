@@ -4,3 +4,5 @@ __pycache__/
 app.db
 .env
 .pytest_cache/
+.coverage
+htmlcov/

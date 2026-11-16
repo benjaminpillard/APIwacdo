@@ -197,3 +197,66 @@ def test_saut_direct_a_livree_refuse(client, creer_compte, catalogue):
     ).json()
     reponse = client.post(f"/commandes/{commande['id']}/livrer", headers=entetes)
     assert reponse.status_code == 409
+
+def test_commandes_a_preparer_triees_par_heure_de_livraison(client, creer_compte, catalogue):
+    accueil = creer_compte(Role.accueil)
+    preparateur = creer_compte(Role.preparateur)
+    ligne = [{"produit_id": catalogue["big_mac_id"]}]
+
+    # Saisies dans le désordre ; T3 n'a pas d'heure de livraison
+    for numero, heure in [("T1", "2026-11-12T12:30:00"), ("T2", "2026-11-12T12:00:00"), ("T3", None)]:
+        corps = {"numero": numero, "mode": "telephone", "lignes": ligne}
+        if heure:
+            corps["heure_livraison"] = heure
+        client.post("/commandes/", json=corps, headers=accueil)
+
+    # Une commande déjà préparée ne doit pas apparaître dans la liste « à préparer »
+    t4 = client.post(
+        "/commandes/",
+        json={"numero": "T4", "mode": "comptoir", "heure_livraison": "2026-11-12T11:00:00", "lignes": ligne},
+        headers=accueil,
+    ).json()
+    client.post(f"/commandes/{t4['id']}/preparer", headers=preparateur)
+
+    a_preparer = client.get("/commandes/?statut=saisie", headers=preparateur).json()
+    assert [c["numero"] for c in a_preparer] == ["T2", "T1", "T3"]
+
+
+def test_filtrer_les_commandes_par_mode(client, creer_compte, catalogue):
+    accueil = creer_compte(Role.accueil)
+    ligne = [{"produit_id": catalogue["big_mac_id"]}]
+    client.post("/commandes/", json={"numero": "C1", "mode": "comptoir", "lignes": ligne}, headers=accueil)
+    client.post("/commandes/", json={"numero": "P1", "mode": "telephone", "lignes": ligne}, headers=accueil)
+
+    par_telephone = client.get("/commandes/?mode=telephone", headers=accueil).json()
+    assert [c["numero"] for c in par_telephone] == ["P1"]
+
+
+def test_ligne_avec_produit_et_menu_refusee(client, creer_compte, catalogue):
+    accueil = creer_compte(Role.accueil)
+    reponse = client.post(
+        "/commandes/",
+        json={"numero": "X", "mode": "comptoir",
+              "lignes": [{"produit_id": catalogue["big_mac_id"], "menu_id": catalogue["menu_id"]}]},
+        headers=accueil,
+    )
+    assert reponse.status_code == 422
+
+
+def test_commande_sans_ligne_refusee(client, creer_compte):
+    accueil = creer_compte(Role.accueil)
+    reponse = client.post("/commandes/", json={"numero": "X", "mode": "comptoir", "lignes": []}, headers=accueil)
+    assert reponse.status_code == 422
+
+
+def test_produit_indisponible_refuse(client, creer_compte, catalogue):
+    accueil = creer_compte(Role.accueil)
+    client.patch(f"/produits/{catalogue['coca_id']}", json={"disponible": False},
+                 headers=catalogue["entetes_admin"])
+    reponse = client.post(
+        "/commandes/",
+        json={"numero": "X", "mode": "comptoir", "lignes": [{"produit_id": catalogue["coca_id"]}]},
+        headers=accueil,
+    )
+    assert reponse.status_code == 400
+    assert "n'est plus disponible" in reponse.json()["detail"]

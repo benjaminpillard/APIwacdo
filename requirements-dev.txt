@@ -1,0 +1,4 @@
+# Dependances de developpement (tests), en plus de celles de production
+-r requirements.txt
+pytest-cov==7.1.0
+coverage==7.17.3
