@@ -30,7 +30,7 @@ POLITIQUE = PolitiqueConfidentialite(
     ),
     destinataires=(
         "Aucune donnée n'est vendue ni partagée avec des tiers. Seuls les administrateurs "
-        "de Wacdo y ont accès. L'application est hébergée par Render (prestataire technique)."
+        "de Wacdo y ont accès. Prestataires techniques : Render (hébergement de l'application) et Neon (hébergement de la base de données, dans l'Union européenne)."
     ),
     securite=[
         "Mots de passe hachés avec Argon2",

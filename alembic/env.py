@@ -18,7 +18,7 @@ if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
 # L'URL de la base vient du .env (DATABASE_URL), pas de alembic.ini :
-# ainsi les migrations visent la même base que l'application (SQLite en local, PostgreSQL sur Render).
+# ainsi les migrations visent la même base que l'application (SQLite en local, PostgreSQL chez Neon en production).
 # Les « % » sont doublés car alembic.ini est lu par configparser.
 config.set_main_option("sqlalchemy.url", database_url.replace("%", "%%"))
 
