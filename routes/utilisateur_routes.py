@@ -17,13 +17,13 @@ from models.database import get_db
 from models.user import Utilisateur
 
 
-utilisateur_route = APIRouter(
+utilisateur_router = APIRouter(
     prefix="/users",
     tags=["Utilisateurs"]
 )
 
 
-@utilisateur_route.post(
+@utilisateur_router.post(
     "/login",
     response_model=Token,
     summary="Se connecter (obtenir un token)",
@@ -65,7 +65,7 @@ def login(
     return Token(access_token=token, token_type="bearer")
 
 
-@utilisateur_route.post(
+@utilisateur_router.post(
     "/register",
     response_model=UserOut,
     status_code=status.HTTP_201_CREATED,
@@ -86,7 +86,7 @@ def register(
     return utilisateur_controller.create(db, user)
 
 
-@utilisateur_route.get(
+@utilisateur_router.get(
     "/me",
     response_model=UserOut,
     summary="Consulter mes données (RGPD)",
@@ -97,7 +97,7 @@ def read_users_me(current_user: Utilisateur = Depends(get_current_user)):
     return current_user
 
 
-@utilisateur_route.patch(
+@utilisateur_router.patch(
     "/me",
     response_model=UserOut,
     summary="Modifier mes données (RGPD)",
@@ -116,7 +116,7 @@ def update_me(
     return utilisateur_controller.update(db, current_user, data)
 
 
-@utilisateur_route.delete(
+@utilisateur_router.delete(
     "/me",
     status_code=status.HTTP_204_NO_CONTENT,
     summary="Supprimer mon compte (RGPD)",
@@ -139,7 +139,7 @@ def delete_me(
     return None
 
 
-@utilisateur_route.get(
+@utilisateur_router.get(
     "/all",
     response_model=list[UserOut],
     summary="Lister les comptes",
@@ -153,7 +153,7 @@ def read_all_users(
     return utilisateur_controller.lister_tous(db)
 
 
-@utilisateur_route.delete(
+@utilisateur_router.delete(
     "/{user_id}",
     status_code=status.HTTP_204_NO_CONTENT,
     summary="Supprimer un compte",

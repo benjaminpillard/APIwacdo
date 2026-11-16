@@ -6,7 +6,7 @@ from utils.setting import settings
 
 
 def normaliser_url(url: str) -> str:
-    # Adapter les vieux formats Postgres (ex. celui fourni par Render) vers le driver psycopg 3
+    # Adapter les formats d'URL PostgreSQL (Neon, Render...) vers le driver psycopg 3
     if url.startswith("postgresql://"):
         return url.replace("postgresql://", "postgresql+psycopg://", 1)
     if url.startswith("postgres://"):
