@@ -8,11 +8,11 @@ from slowapi.errors import RateLimitExceeded
 from sqlalchemy.exc import IntegrityError
 
 from routes.produit_routes import produit_router
-from routes.menus_routes import menu_router
-from routes.user_route import utilisateur_route
-from routes.commande_route import commande_router
+from routes.menu_routes import menu_router
+from routes.utilisateur_routes import utilisateur_router
+from routes.commande_routes import commande_router
 from routes.categorie_routes import categorie_router
-from routes.confidentialite_route import confidentialite_router
+from routes.confidentialite_routes import confidentialite_router
 
 from utils.limiter import limiter
 from utils.logger import configurer_logs, logger, audit
@@ -65,7 +65,7 @@ app.state.limiter = limiter
 # Brancher les routes de l'API
 app.include_router(produit_router)
 app.include_router(menu_router)
-app.include_router(utilisateur_route)
+app.include_router(utilisateur_router)
 app.include_router(commande_router)
 app.include_router(categorie_router)
 app.include_router(confidentialite_router)

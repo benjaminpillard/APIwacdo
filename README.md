@@ -5,6 +5,7 @@ API REST du **back-office Wacdo** : gestion du catalogue (produits, catégories,
 - **Documentation interactive** : `/docs` (Swagger) et `/redoc`
 - **Collection Postman** : [`docs/postman/`](docs/postman/)
 - **Modèle de données** : [`docs/MCD_MLD_APIwacdo.md`](docs/MCD_MLD_APIwacdo.md)
+- **Script SQL de la base** : [`docs/base_de_donnees/schema_postgresql.sql`](docs/base_de_donnees/schema_postgresql.sql)
 - **Schémas fonctionnels** : [`docs/Schemas_fonctionnels_APIwacdo.md`](docs/Schemas_fonctionnels_APIwacdo.md)
 
 ## Sommaire
@@ -72,8 +73,9 @@ Le projet suit une organisation **MVC** adaptée à une API :
 ├── utils/                   # authentification, JWT, hachage, logs, limitation de débit, configuration
 ├── alembic/                 # migrations de la base de données
 ├── tests/                   # tests automatisés (pytest)
-├── docs/                    # MCD/MLD, schémas fonctionnels, collection Postman
+├── docs/                    # MCD/MLD, script SQL, schémas fonctionnels, collection Postman
 ├── create_admin.py          # crée un compte administrateur
+├── seed.py                  # charge des données de démonstration
 ├── requirements.txt         # dépendances de production
 └── requirements-dev.txt     # dépendances de développement (couverture de tests)
 ```
@@ -155,7 +157,12 @@ La structure de la base est gérée **uniquement par Alembic**, jamais créée a
 ```bash
 alembic upgrade head        # crée ou met à jour les tables
 python create_admin.py      # crée le premier administrateur (identifiant, email, mot de passe)
+python seed.py              # facultatif : données de démonstration
 ```
+
+`seed.py` charge un jeu de démonstration : 5 catégories, 16 produits (dont un indisponible), 3 menus avec leurs groupes de choix (accompagnement avec supplément, boisson, sauces facultatives), les comptes `preparateur_demo` et `accueil_demo` (mots de passe demandés au clavier) et 4 commandes à différents stades. Il peut être relancé sans créer de doublons.
+
+Le script SQL complet de création de la base PostgreSQL est fourni dans [`docs/base_de_donnees/schema_postgresql.sql`](docs/base_de_donnees/schema_postgresql.sql). Il est généré par `alembic upgrade head --sql`.
 
 Après une modification d'un modèle (`models/`) :
 
@@ -177,8 +184,8 @@ uvicorn main:app --reload
 ## Tests
 
 ```bash
-pytest                       # 152 tests
-pytest --cov=.               # avec la couverture de code (97 %)
+pytest                       # 155 tests
+pytest --cov=.               # avec la couverture de code (96 %)
 ```
 
 Les tests tournent sur une base SQLite en mémoire, recréée pour chaque test : la base de développement n'est jamais touchée.
@@ -193,6 +200,7 @@ Les tests tournent sur une base SQLite en mémoire, recréée pour chaque test :
 | `test_commande.py` | Saisie, prix figés, choix de menu, circuit des statuts, tri par heure de livraison |
 | `test_users.py` | Création de comptes |
 | `test_documentation.py` | Chaque route est documentée dans Swagger, et la doc correspond aux réponses réelles |
+| `test_seed.py` | Le jeu de démonstration est cohérent et peut être rechargé sans doublon |
 
 ## Tester avec Postman
 
@@ -231,13 +239,14 @@ La base est séparée de l'API : un redéploiement de Render ne touche jamais au
      `alembic upgrade head` applique les migrations à chaque déploiement (les tables sont créées au premier). `--proxy-headers` permet à l'API de voir la vraie IP des clients derrière le proxy de Render : sans cette option, la limitation de débit bloquerait tout le monde en même temps.
 2. Variables d'environnement (**Environment**) : `DATABASE_URL` (chaîne de connexion Neon), `SECRET_KEY`, `ALGORITHM`, `CORS_ORIGINS`.
 
-### 3. Premier administrateur
+### 3. Premier administrateur et données de démonstration
 
 Depuis sa machine, en visant la base de production (PowerShell) :
 
 ```powershell
 $env:DATABASE_URL = "<chaîne de connexion Neon>"
 python create_admin.py
+python seed.py                   # facultatif : catalogue, comptes et commandes de démo
 Remove-Item Env:DATABASE_URL     # revenir à la base locale
 ```
 

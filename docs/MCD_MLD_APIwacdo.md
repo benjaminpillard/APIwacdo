@@ -150,7 +150,7 @@ LIGNE_COMMANDE_CHOIX(id,
 
 ## 3. Schéma physique (tel qu'implémenté)
 
-Les tables sont créées par les migrations Alembic :
+Les tables sont créées par les migrations Alembic. Le script SQL complet pour PostgreSQL est fourni dans [`base_de_donnees/schema_postgresql.sql`](base_de_donnees/schema_postgresql.sql).
 
 | Migration | Contenu |
 |---|---|
@@ -208,7 +208,7 @@ erDiagram
     commandes {
         INTEGER id PK
         VARCHAR_20 numero UK "numéro du ticket"
-        VARCHAR_9 statut "saisie, preparee, livree"
+        VARCHAR_8 statut "saisie, preparee, livree"
         VARCHAR_9 mode "comptoir, telephone"
         TIMESTAMPTZ heure_livraison "indexé : tri des commandes à préparer"
         NUMERIC_8_2 total
