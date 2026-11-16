@@ -7,7 +7,7 @@
   "variable": [
     {
       "key": "preparateur_username",
-      "value": "prepa_demo"
+      "value": "postman_preparateur"
     },
     {
       "key": "preparateur_password",
@@ -15,7 +15,7 @@
     },
     {
       "key": "accueil_username",
-      "value": "accueil_demo"
+      "value": "postman_accueil"
     },
     {
       "key": "accueil_password",
