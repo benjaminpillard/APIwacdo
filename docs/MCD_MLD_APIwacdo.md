@@ -12,6 +12,7 @@ Ce document reprend le modèle conceptuel (MCD) et le modèle logique (MLD) de l
 - email
 - password (haché)
 - role (administrateur / preparateur / accueil)
+- actif *(faux quand le compte a été supprimé puis anonymisé, voir RGPD)*
 
 **CATEGORIE**
 - id
@@ -94,7 +95,8 @@ erDiagram
 Notation : `TABLE(clé_primaire, attribut, ..., #clé_étrangère)`. Le `#` marque une clé étrangère.
 
 ```
-UTILISATEUR(id, username, email, password, role)
+UTILISATEUR(id, username, email, password, role, actif)
+    contraintes d'unicité : username, email
 
 CATEGORIE(id, nom)
 
@@ -141,11 +143,124 @@ LIGNE_COMMANDE_CHOIX(id,
 - Les associations **1,1 / 0,n ou 1,n** (CLASSER, COMPOSER, POSSEDER, CIBLER, SAISIR, CONTENIR, CONCERNER_PRODUIT, CONCERNER_MENU) deviennent une simple clé étrangère dans la table du côté « plusieurs ».
 - L'association **0,n / 0,n** PROPOSER, qui porte l'attribut `supplement`, devient une **table à part entière** : `MENU_GROUPE_PRODUIT`. C'est elle qui permet de proposer un même produit dans plusieurs groupes, avec un supplément de prix différent selon le groupe.
 - L'association **0,n / 0,n** CHOISIR devient elle aussi une table à part, `LIGNE_COMMANDE_CHOIX`, qui relie une ligne de commande, un groupe et le produit réellement choisi par le client dans ce groupe.
+- Les colonnes `statut` et `mode` sont des **énumérations** (`saisie`, `preparee`, `livree` ; `comptoir`, `telephone`), stockées en texte. Les valeurs sont contrôlées par l'application (Pydantic à l'entrée de l'API, type `Enum` de SQLAlchemy à l'écriture).
 - `prix_unitaire` (dans `LIGNE_COMMANDE`) et `supplement` (dans `MENU_GROUPE_PRODUIT`) sont stockés en `NUMERIC(8,2)`, jamais en nombre à virgule flottante, pour éviter les erreurs d'arrondi sur des montants d'argent.
 
 ---
 
 ## 3. Schéma physique (tel qu'implémenté)
 
-Le schéma ci-dessus correspond exactement aux 9 tables créées par la migration Alembic initiale (`alembic/versions/c1bd65457d10_creation_initiale_des_tables.py`) :
-`utilisateurs`, `categories`, `produits`, `menus`, `menu_groupes`, `menu_groupe_produits`, `commandes`, `lignes_commande`, `lignes_commande_choix`.
+Les tables sont créées par les migrations Alembic :
+
+| Migration | Contenu |
+|---|---|
+| `c1bd65457d10_creation_initiale_des_tables.py` | les 9 tables |
+| `8f77dab79eda_ajout_colonne_actif_sur_utilisateurs.py` | colonne `utilisateurs.actif` (anonymisation RGPD) |
+
+```mermaid
+erDiagram
+    utilisateurs {
+        INTEGER id PK
+        VARCHAR username UK "identifiant de connexion"
+        VARCHAR email UK
+        VARCHAR password "hash Argon2, jamais en clair"
+        VARCHAR role "administrateur, preparateur, accueil"
+        BOOLEAN actif "false si anonymisé"
+    }
+    categories {
+        INTEGER id PK
+        VARCHAR_50 nom UK
+    }
+    produits {
+        INTEGER id PK
+        VARCHAR_100 nom
+        VARCHAR_500 description
+        NUMERIC_8_2 prix
+        VARCHAR_255 image_url
+        BOOLEAN disponible
+        INTEGER categorie_id FK
+        TIMESTAMPTZ created_at
+        TIMESTAMPTZ updated_at
+    }
+    menus {
+        INTEGER id PK
+        VARCHAR_100 nom
+        VARCHAR_500 description
+        NUMERIC_8_2 prix
+        VARCHAR_255 image_url
+        BOOLEAN disponible
+        INTEGER produit_principal_id FK
+    }
+    menu_groupes {
+        INTEGER id PK
+        INTEGER menu_id FK
+        VARCHAR_50 nom
+        BOOLEAN obligatoire
+        INTEGER max_choix
+        INTEGER categorie_id FK "facultatif"
+    }
+    menu_groupe_produits {
+        INTEGER id PK
+        INTEGER groupe_id FK
+        INTEGER produit_id FK
+        NUMERIC_8_2 supplement
+    }
+    commandes {
+        INTEGER id PK
+        VARCHAR_20 numero UK "numéro du ticket"
+        VARCHAR_9 statut "saisie, preparee, livree"
+        VARCHAR_9 mode "comptoir, telephone"
+        TIMESTAMPTZ heure_livraison "indexé : tri des commandes à préparer"
+        NUMERIC_8_2 total
+        INTEGER utilisateur_id FK
+        TIMESTAMPTZ created_at
+        TIMESTAMPTZ updated_at
+    }
+    lignes_commande {
+        INTEGER id PK
+        INTEGER commande_id FK
+        INTEGER produit_id FK "OU menu_id"
+        INTEGER menu_id FK "OU produit_id"
+        INTEGER quantite
+        NUMERIC_8_2 prix_unitaire "figé à la commande"
+    }
+    lignes_commande_choix {
+        INTEGER id PK
+        INTEGER ligne_commande_id FK
+        INTEGER groupe_id FK
+        INTEGER produit_id FK
+    }
+
+    categories ||--o{ produits : categorie_id
+    produits ||--o{ menus : produit_principal_id
+    menus ||--o{ menu_groupes : menu_id
+    categories |o--o{ menu_groupes : categorie_id
+    menu_groupes ||--o{ menu_groupe_produits : groupe_id
+    produits ||--o{ menu_groupe_produits : produit_id
+    utilisateurs ||--o{ commandes : utilisateur_id
+    commandes ||--o{ lignes_commande : commande_id
+    produits |o--o{ lignes_commande : produit_id
+    menus |o--o{ lignes_commande : menu_id
+    lignes_commande ||--o{ lignes_commande_choix : ligne_commande_id
+    menu_groupes ||--o{ lignes_commande_choix : groupe_id
+    produits ||--o{ lignes_commande_choix : produit_id
+```
+
+### 3.1 Choix des types
+
+| Donnée | Type | Pourquoi |
+|---|---|---|
+| Prix, suppléments, totaux | `NUMERIC(8,2)` | valeur exacte au centime, pas d'erreur d'arrondi comme avec un `FLOAT` |
+| Dates | `TIMESTAMP WITH TIME ZONE` | pas d'ambiguïté d'heure (heure d'été, serveur dans un autre fuseau) |
+| Disponibilité, obligatoire, actif | `BOOLEAN` | deux états seulement |
+| Statut, mode | énumération stockée en `VARCHAR` | liste fermée de valeurs, contrôlée par l'application (Python `Enum`) |
+| Textes | `VARCHAR(n)` | longueur maximale identique à la validation Pydantic de l'API |
+| Mot de passe | `VARCHAR` | contient un hash Argon2 (le mot de passe en clair n'est jamais stocké) |
+
+### 3.2 Intégrité et performances
+
+- **Clés étrangères** sur toutes les relations : impossible de référencer un produit, un menu ou une catégorie inexistant (vérifiées aussi en développement sous SQLite grâce à `PRAGMA foreign_keys=ON`).
+- **Contrainte de vérification** sur `lignes_commande` : une ligne concerne un produit **ou** un menu, jamais les deux ni aucun.
+- **Contraintes d'unicité** : nom de catégorie, username, email, numéro de commande, couple (groupe, produit).
+- **Index** sur les colonnes filtrées ou triées : `produits.nom`, `commandes.statut`, `commandes.heure_livraison`, `utilisateurs.username`, `utilisateurs.email`.
+- **Suppressions protégées** par l'API : un produit, un menu, une catégorie ou un groupe déjà utilisé ne peut pas être supprimé (409), pour préserver l'historique des commandes. Il faut le rendre indisponible.
